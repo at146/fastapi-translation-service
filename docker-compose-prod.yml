@@ -1,0 +1,14 @@
+name: fastapi-translation-service
+services:
+  app:
+    container_name: fastapi-translation-service-app
+    image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
+    build:
+      context: ./
+    restart: always
+    network_mode: "host"
+    environment:
+      - UVICORN_HOST=127.0.0.1
+      - UVICORN_PORT=11000
+      - UVICORN_RELOAD=False
+      - UVICORN_WORKERS=1
