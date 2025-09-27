@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Отладчик Python: Модуль",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app",
+            "justMyCode": false
+        },
+        {
+            "name": "FastAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "server:app",
+                "--port",
+                "8477",
+            ],
+            "justMyCode": false
+            // "console": "integratedTerminal"
+        }
+    ]
+}
