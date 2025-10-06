@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 
-model_path = "Helsinki-train-combined-dedup-cleaned-05072025"
+model_path = r"C:\MT_SERVER\Helsinki-train-combined-dedup-cleaned-05072025"
 tokenizer = MarianTokenizer.from_pretrained(model_path, local_files_only=True)
 model = MarianMTModel.from_pretrained(model_path, trust_remote_code=True)
 
