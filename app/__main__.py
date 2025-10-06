@@ -120,9 +120,9 @@ def interactive_translation(text: str) -> dict:
 if __name__ == "__main__":
     uvicorn.run(
         "app.__main__:app",
-        host=settings.UVICORN_HOST,
-        port=settings.UVICORN_PORT,
+        host="127.0.0.1",
+        port=8000,
         log_config=None,
-        reload=settings.UVICORN_RELOAD,
-        workers=settings.UVICORN_WORKERS,
+        reload=False,
+        workers=1,
     )
