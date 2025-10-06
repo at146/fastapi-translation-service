@@ -9,8 +9,6 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from transformers import MarianMTModel, MarianTokenizer
 
-from app.core.config import settings
-
 # TODO: добавить timeddrotatingfilehandler
 # чтобы логи не росли бесконечно
 pathlib.Path("logs").mkdir(parents=True, exist_ok=True)
