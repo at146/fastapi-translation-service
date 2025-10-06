@@ -9,19 +9,23 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from transformers import MarianMTModel, MarianTokenizer
 
+from app.utils.logging import setup_logger
+
 # TODO: добавить timeddrotatingfilehandler
 # чтобы логи не росли бесконечно
-pathlib.Path("logs").mkdir(parents=True, exist_ok=True)
+# pathlib.Path("logs").mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("logs/log.log", encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(
+#     level=logging.DEBUG,
+#     format="%(asctime)s [%(levelname)s] %(message)s",
+#     handlers=[
+#         logging.FileHandler("logs/log.log", encoding="utf-8"),
+#         logging.StreamHandler(),
+#     ],
+# )
+# logger = logging.getLogger(__name__)
+
+logger = setup_logger()
 
 app = FastAPI()
 
