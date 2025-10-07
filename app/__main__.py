@@ -1,6 +1,4 @@
 import json
-import logging
-import pathlib
 
 import torch
 import uvicorn
@@ -9,25 +7,15 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from transformers import MarianMTModel, MarianTokenizer
 
+from app.core.config import Environment, settings
 from app.utils.logging import setup_logger
-
-# TODO: добавить timeddrotatingfilehandler
-# чтобы логи не росли бесконечно
-# pathlib.Path("logs").mkdir(parents=True, exist_ok=True)
-
-# logging.basicConfig(
-#     level=logging.DEBUG,
-#     format="%(asctime)s [%(levelname)s] %(message)s",
-#     handlers=[
-#         logging.FileHandler("logs/log.log", encoding="utf-8"),
-#         logging.StreamHandler(),
-#     ],
-# )
-# logger = logging.getLogger(__name__)
 
 logger = setup_logger()
 
-app = FastAPI()
+if settings.ENVIRONMENT == Environment.PRODUCTION:
+    app = FastAPI(docs_url=None, redoc_url=None)
+else:
+    app = FastAPI()
 
 
 model_path = r"C:\MT_SERVER\Helsinki-train-combined-dedup-cleaned-05072025"
@@ -122,9 +110,9 @@ def interactive_translation(text: str) -> dict:
 if __name__ == "__main__":
     uvicorn.run(
         "app.__main__:app",
-        host="127.0.0.1",
-        port=8000,
+        host=settings.UVICORN_HOST,
+        port=settings.UVICORN_PORT,
         log_config=None,
         reload=False,
-        workers=1,
+        workers=settings.UVICORN_WORKERS,
     )
