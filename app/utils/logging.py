@@ -39,7 +39,7 @@ LOGGER_CONFIG = {
     },
     "loggers": {
         "": {
-            "handlers": ["file", "error_file"],
+            "handlers": ["file", "error_file", "console"],
             "level": "DEBUG",
             "propagate": False,
         },
