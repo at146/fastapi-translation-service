@@ -27,5 +27,7 @@ class Settings(BaseSettings):
 
     MODEL_PATH: Path
 
+    API_KEY: str
+
 
 settings = Settings()  # type: ignore
