@@ -9,7 +9,7 @@ LOGGER_CONFIG = {
         "basic": {
             "class": "logging.Formatter",
             "datefmt": "%d-%m-%Y %H:%M:%S",
-            "format": "%(asctime)s (%(name)s:%(filename)s:%(lineno)d) %(levelname)s - %(message)s",
+            "format": "%(asctime)s (%(name)s:%(filename)s:%(lineno)d) %(levelname)s - %(message)s",  # noqa: E501
         }
     },
     "handlers": {

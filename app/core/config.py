@@ -1,4 +1,5 @@
 from enum import Enum
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -6,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Environment(str, Enum):
     LOCAL = "local"
     PRODUCTION = "production"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -22,6 +24,8 @@ class Settings(BaseSettings):
     UVICORN_PORT: int
     UVICORN_RELOAD: bool
     UVICORN_WORKERS: int
+
+    MODEL_PATH: Path
 
 
 settings = Settings()  # type: ignore

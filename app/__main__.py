@@ -18,9 +18,8 @@ else:
     app = FastAPI()
 
 
-model_path = r"C:\MT_SERVER\Helsinki-train-combined-dedup-cleaned-05072025"
-tokenizer = MarianTokenizer.from_pretrained(model_path, local_files_only=True)
-model = MarianMTModel.from_pretrained(model_path, trust_remote_code=True)
+tokenizer = MarianTokenizer.from_pretrained(settings.MODEL_PATH, local_files_only=True)
+model = MarianMTModel.from_pretrained(settings.MODEL_PATH, trust_remote_code=True)
 
 
 class TranslationRequest(BaseModel):
