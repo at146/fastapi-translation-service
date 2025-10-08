@@ -1,9 +1,12 @@
 import json
+import secrets
+from typing import Annotated
 
 import torch
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from transformers import MarianMTModel, MarianTokenizer
 
@@ -11,6 +14,35 @@ from app.core.config import Environment, settings
 from app.utils.logging import setup_logger
 
 logger = setup_logger()
+
+
+security = HTTPBearer()
+
+
+async def verify_bearer_token(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> None:
+    """
+    Проверяет header Authorization: Bearer <token>
+    Возвращает словарь (можно вернуть объект user или claims),
+    либо выбрасывает HTTPException.
+    """
+    # Проверяем, что схема — Bearer
+    if credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication scheme",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Сравниваем токены безопасно (против timing-атак)
+    if not secrets.compare_digest(credentials.credentials, settings.API_KEY):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 
 if settings.ENVIRONMENT == Environment.PRODUCTION:
     app = FastAPI(docs_url=None, redoc_url=None)
@@ -28,7 +60,7 @@ class TranslationRequest(BaseModel):
     target_language: str
 
 
-@app.post("/translate")
+@app.post("/translate", dependencies=[Depends(verify_bearer_token)])
 async def translate_text(req: Request) -> dict:
     data = await req.json()
     logger.info(
