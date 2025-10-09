@@ -5,7 +5,6 @@ from typing import Annotated
 import torch
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from transformers import MarianMTModel, MarianTokenizer
@@ -107,35 +106,35 @@ async def translate_text(req: Request) -> dict:
     return response
 
 
-@app.get("/test")
-def test_translation() -> dict:
-    test_text = "Hello, world!"
-    inputs = tokenizer([test_text], return_tensors="pt", padding=True)
-    with torch.no_grad():
-        output = model.generate(**inputs)
-    translation = tokenizer.decode(output[0], skip_special_tokens=True)
-    logger.info("Тестовый перевод: %s → %s", test_text, translation)
-    return {"source": test_text, "translation": translation}
+# @app.get("/test")
+# def test_translation() -> dict:
+#     test_text = "Hello, world!"
+#     inputs = tokenizer([test_text], return_tensors="pt", padding=True)
+#     with torch.no_grad():
+#         output = model.generate(**inputs)
+#     translation = tokenizer.decode(output[0], skip_special_tokens=True)
+#     logger.info("Тестовый перевод: %s → %s", test_text, translation)
+#     return {"source": test_text, "translation": translation}
 
 
-@app.get("/ui", response_class=HTMLResponse)
-def ui() -> str:
-    return """
-    <form action="/interactive" method="get">
-      <input type="text" name="text" placeholder="Введите текст">
-      <button type="submit">Перевести</button>
-    </form>
-    """
+# @app.get("/ui", response_class=HTMLResponse)
+# def ui() -> str:
+#     return """
+#     <form action="/interactive" method="get">
+#       <input type="text" name="text" placeholder="Введите текст">
+#       <button type="submit">Перевести</button>
+#     </form>
+#     """
 
 
-@app.get("/interactive")
-def interactive_translation(text: str) -> dict:
-    inputs = tokenizer([text], return_tensors="pt", padding=True)
-    with torch.no_grad():
-        output = model.generate(**inputs)
-    translation = tokenizer.decode(output[0], skip_special_tokens=True)
-    logger.info("Интерактивный перевод: %s → %s", text, translation)
-    return {"source": text, "translation": translation}
+# @app.get("/interactive")
+# def interactive_translation(text: str) -> dict:
+#     inputs = tokenizer([text], return_tensors="pt", padding=True)
+#     with torch.no_grad():
+#         output = model.generate(**inputs)
+#     translation = tokenizer.decode(output[0], skip_special_tokens=True)
+#     logger.info("Интерактивный перевод: %s → %s", text, translation)
+#     return {"source": text, "translation": translation}
 
 
 if __name__ == "__main__":
