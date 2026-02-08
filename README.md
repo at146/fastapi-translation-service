@@ -147,3 +147,7 @@ fastapi-translation-service/
 - **pydantic**, **pydantic-settings** — валидация и конфигурация из `.env`.
 
 Управление зависимостями: [uv](https://docs.astral.sh/uv/) (в проекте есть `pyproject.toml` и `uv.lock`).
+
+## Лицензия
+
+MIT License — см. [LICENSE](LICENSE).
