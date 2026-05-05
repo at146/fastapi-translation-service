@@ -6,10 +6,10 @@ import torch
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
 from transformers import MarianMTModel, MarianTokenizer
 
 from app.core.config import Environment, settings
+from app.tag_handler import replace_tags, restore_tags
 from app.utils.logging import setup_logger
 
 logger = setup_logger()
@@ -53,21 +53,18 @@ tokenizer = MarianTokenizer.from_pretrained(settings.MODEL_PATH, local_files_onl
 model = MarianMTModel.from_pretrained(settings.MODEL_PATH, trust_remote_code=True)
 
 
-class TranslationRequest(BaseModel):
-    source: str
-    source_language: str
-    target_language: str
-
-
 @app.post("/translate", dependencies=[Depends(verify_bearer_token)])
 async def translate_text(req: Request) -> dict:
+    """
+    С поддержкой XLIFF-тегов.
+    """
     data = await req.json()
     logger.info(
         "🔵 Пришёл запрос от плагина:\n%s",
         json.dumps(data, ensure_ascii=False, indent=2),
     )
 
-    # Определяем текст
+    # ── 1. Определяем текст ──────────────────────────────────────────────
     if "messages" in data:
         user_messages = [
             m["content"] for m in data.get("messages", []) if m["role"] == "user"
@@ -76,34 +73,77 @@ async def translate_text(req: Request) -> dict:
     elif "source" in data:
         text = data["source"]
     else:
-        return {"translation": ""}
+        return _openai_response("")
 
-    # Перевод
-    inputs = tokenizer([text], return_tensors="pt", padding=True)
+    if not text.strip():
+        return _openai_response("")
+
+    # ── 2. Замена тегов на плейсхолдеры ──────────────────────────────────
+    tag_result = replace_tags(text)
+
+    if tag_result.has_tags:
+        logger.info(
+            "🏷️  Найдено %d тегов, заменены на плейсхолдеры",
+            len(tag_result.mappings),
+        )
+        logger.debug(
+            "Маппинг тегов:\n%s",
+            "\n".join(
+                f"  {m.placeholder} ← {m.original_tag}" for m in tag_result.mappings
+            ),
+        )
+
+    text_for_model = tag_result.cleaned_text
+
+    # ── 3. Перевод моделью ───────────────────────────────────────────────
+    inputs = tokenizer([text_for_model], return_tensors="pt", padding=True)
     with torch.no_grad():
         output = model.generate(**inputs)
     translation = tokenizer.decode(output[0], skip_special_tokens=True)
 
-    logger.info("✅ Перевод: %s → %s", text, translation)
+    logger.info("✅ Сырой перевод: %s → %s", text_for_model, translation)
 
-    # Минимальный OpenAI-совместимый ответ
-    response = {
+    # ── 4. Восстановление тегов ──────────────────────────────────────────
+    if tag_result.has_tags:
+        restore_result = restore_tags(translation, tag_result.mappings, text)
+        translation = restore_result.restored_text
+
+        if not restore_result.success:
+            logger.warning(
+                "⚠️  Восстановление тегов с ошибками: %s | fallback=%s",
+                "; ".join(restore_result.warnings),
+                restore_result.used_fallback,
+            )
+        else:
+            if restore_result.warnings:
+                logger.warning(
+                    "⚠️  Восстановление тегов с предупреждениями: %s",
+                    "; ".join(restore_result.warnings),
+                )
+            logger.info("🏷️  Теги восстановлены: %s", translation)
+
+    # ── 5. Ответ в OpenAI-совместимом формате ────────────────────────────
+    response = _openai_response(translation)
+    logger.info(
+        "🟢 Ответ:\n%s",
+        json.dumps(response, ensure_ascii=False, indent=2),
+    )
+    return response
+
+
+def _openai_response(content: str) -> dict:
+    """Формирует минимальный OpenAI-совместимый ответ."""
+    return {
         "id": "test",
         "object": "chat.completion",
         "choices": [
             {
                 "index": 0,
-                "message": {"role": "assistant", "content": translation},
+                "message": {"role": "assistant", "content": content},
                 "finish_reason": "stop",
             }
         ],
     }
-
-    logger.info(
-        "🟢 Ответ (OpenAI минимальный):\n%s",
-        json.dumps(response, ensure_ascii=False, indent=2),
-    )
-    return response
 
 
 # @app.get("/test")
