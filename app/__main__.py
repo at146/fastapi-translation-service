@@ -52,7 +52,7 @@ else:
 tokenizer = MarianTokenizer.from_pretrained(settings.MODEL_PATH, local_files_only=True)
 model = MarianMTModel.from_pretrained(settings.MODEL_PATH, trust_remote_code=True)
 
-
+# TODO: должен прилетать json
 @app.post("/translate", dependencies=[Depends(verify_bearer_token)])
 async def translate_text(req: Request) -> dict:
     """
