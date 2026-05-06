@@ -60,7 +60,7 @@ async def translate_text(req: Request) -> dict:
     """
     data = await req.json()
     logger.info(
-        "🔵 Пришёл запрос от плагина:\n%s",
+        "Пришёл запрос от плагина:\n%s",
         json.dumps(data, ensure_ascii=False, indent=2),
     )
 
@@ -83,7 +83,7 @@ async def translate_text(req: Request) -> dict:
 
     if tag_result.has_tags:
         logger.info(
-            "🏷️  Найдено %d тегов, заменены на плейсхолдеры",
+            "Найдено %d тегов, заменены на плейсхолдеры",
             len(tag_result.mappings),
         )
         logger.debug(
@@ -101,7 +101,7 @@ async def translate_text(req: Request) -> dict:
         output = model.generate(**inputs)
     translation = tokenizer.decode(output[0], skip_special_tokens=True)
 
-    logger.info("✅ Сырой перевод: %s → %s", text_for_model, translation)
+    logger.info("Сырой перевод: %s → %s", text_for_model, translation)
 
     # ── 4. Восстановление тегов ──────────────────────────────────────────
     if tag_result.has_tags:
@@ -110,22 +110,22 @@ async def translate_text(req: Request) -> dict:
 
         if not restore_result.success:
             logger.warning(
-                "⚠️  Восстановление тегов с ошибками: %s | fallback=%s",
+                "Восстановление тегов с ошибками: %s | fallback=%s",
                 "; ".join(restore_result.warnings),
                 restore_result.used_fallback,
             )
         else:
             if restore_result.warnings:
                 logger.warning(
-                    "⚠️  Восстановление тегов с предупреждениями: %s",
+                    "Восстановление тегов с предупреждениями: %s",
                     "; ".join(restore_result.warnings),
                 )
-            logger.info("🏷️  Теги восстановлены: %s", translation)
+            logger.info("Теги восстановлены: %s", translation)
 
     # ── 5. Ответ в OpenAI-совместимом формате ────────────────────────────
     response = _openai_response(translation)
     logger.info(
-        "🟢 Ответ:\n%s",
+        "Ответ:\n%s",
         json.dumps(response, ensure_ascii=False, indent=2),
     )
     return response
