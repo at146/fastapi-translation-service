@@ -130,7 +130,7 @@ async def translate_text(req: Request) -> dict:
     )
     return response
 
-
+# TODO: посмотреть как получает ответ плагин memoQ
 def _openai_response(content: str) -> dict:
     """Формирует минимальный OpenAI-совместимый ответ."""
     return {

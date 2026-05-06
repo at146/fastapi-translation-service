@@ -2,6 +2,7 @@ import logging
 import pathlib
 from logging.config import dictConfig
 
+# TODO: вынести level для логгов в переменную
 LOGGER_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
