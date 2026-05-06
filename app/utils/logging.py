@@ -2,7 +2,8 @@ import logging
 import pathlib
 from logging.config import dictConfig
 
-# TODO: вынести level для логгов в переменную
+from app.core.config import settings
+
 LOGGER_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -16,13 +17,13 @@ LOGGER_CONFIG = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "level": "DEBUG",
+            "level": settings.LOG_LEVEL,
             "formatter": "basic",
             "stream": "ext://sys.stdout",
         },
         "file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "level": "DEBUG",
+            "level": settings.LOG_LEVEL,
             "formatter": "basic",
             "filename": "logs/log.log",
             "when": "midnight",
@@ -41,7 +42,7 @@ LOGGER_CONFIG = {
     "loggers": {
         "": {
             "handlers": ["file", "error_file", "console"],
-            "level": "DEBUG",
+            "level": settings.LOG_LEVEL,
             "propagate": False,
         },
     },
