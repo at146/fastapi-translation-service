@@ -107,9 +107,19 @@ async def translate_text(req: TranslateRequest) -> dict:
     text_for_model = tag_result.cleaned_text
 
     # ── 3. Перевод моделью ───────────────────────────────────────────────
-    inputs = tokenizer([text_for_model], return_tensors="pt", padding=True)
+    # truncation=True + max_length=512: MarianMT обучена на окне в 512 токенов,
+    # без обрезки длинный ввод вызывает RuntimeError: bad allocation в beam search
+    inputs = tokenizer(
+        [text_for_model],
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=512,
+    )
     with torch.no_grad():
-        output = model.generate(**inputs)
+        # max_length=512: ограничивает сторону декодера — без этого beam search
+        # пытается выделить память под очень длинные последовательности
+        output = model.generate(**inputs, max_length=512)
     translation = tokenizer.decode(output[0], skip_special_tokens=True)
 
     logger.info("Сырой перевод: %s → %s", text_for_model, translation)
