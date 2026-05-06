@@ -30,7 +30,8 @@ The service is a single-endpoint FastAPI app wrapping a local MarianMT (Helsinki
 
 **Key design points:**
 - `ENVIRONMENT=production` disables `/docs` and `/redoc`.
-- `UVICORN_WORKERS > 1` in production; `UVICORN_RELOAD=true` only for local dev.
+- `UVICORN_RELOAD=true` only for local dev.
+- **`UVICORN_WORKERS`**: model and tokenizer are loaded at module level, so each worker gets its own full copy in memory. On a **GPU server** keep `UVICORN_WORKERS=1` — multiple workers compete for the same CUDA device and will OOM or deadlock. On a **CPU server** multiple workers are fine if RAM can fit N copies of the model. To check the target server: `uv run python -c "import torch; print(torch.cuda.is_available())"`.
 - The model directory (`Helsinki-train-combined-dedup-cleaned-05072025/`) is baked into the Docker image via `Dockerfile` and is not version-controlled as code.
 - Logs go to stdout, `logs/log.log` (daily rotation, 31-day retention), and `logs/error_log.log` (WARNING+). The `logs/` directory is created automatically on startup.
 
