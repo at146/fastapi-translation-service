@@ -4,13 +4,27 @@ from typing import Annotated
 
 import torch
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
 from transformers import MarianMTModel, MarianTokenizer
 
 from app.core.config import Environment, settings
 from app.tag_handler import replace_tags, restore_tags
 from app.utils.logging import setup_logger
+
+
+class Message(BaseModel):
+    role: str
+    content: str
+
+
+class TranslateRequest(BaseModel):
+    messages: list[Message] | None = None
+    source: str | None = None
+    model: str | None = None
+    max_tokens: int | None = None
+    temperature: float | None = None
 
 logger = setup_logger()
 
@@ -52,26 +66,23 @@ else:
 tokenizer = MarianTokenizer.from_pretrained(settings.MODEL_PATH, local_files_only=True)
 model = MarianMTModel.from_pretrained(settings.MODEL_PATH, trust_remote_code=True)
 
-# TODO: должен прилетать json
+
 @app.post("/translate", dependencies=[Depends(verify_bearer_token)])
-async def translate_text(req: Request) -> dict:
+async def translate_text(req: TranslateRequest) -> dict:
     """
     С поддержкой XLIFF-тегов.
     """
-    data = await req.json()
     logger.info(
         "Пришёл запрос от плагина:\n%s",
-        json.dumps(data, ensure_ascii=False, indent=2),
+        req.model_dump_json(indent=2),
     )
 
     # ── 1. Определяем текст ──────────────────────────────────────────────
-    if "messages" in data:
-        user_messages = [
-            m["content"] for m in data.get("messages", []) if m["role"] == "user"
-        ]
+    if req.messages is not None:
+        user_messages = [m.content for m in req.messages if m.role == "user"]
         text = user_messages[-1] if user_messages else ""
-    elif "source" in data:
-        text = data["source"]
+    elif req.source is not None:
+        text = req.source
     else:
         return _openai_response("")
 
