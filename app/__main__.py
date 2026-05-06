@@ -66,6 +66,13 @@ else:
 tokenizer = MarianTokenizer.from_pretrained(settings.MODEL_PATH, local_files_only=True)
 model = MarianMTModel.from_pretrained(settings.MODEL_PATH, trust_remote_code=True)
 
+logger.info(
+    "Модель загружена: %s | max_position_embeddings=%d | tokenizer.model_max_length=%d",
+    settings.MODEL_PATH,
+    model.config.max_position_embeddings,
+    tokenizer.model_max_length,
+)
+
 
 @app.post("/translate", dependencies=[Depends(verify_bearer_token)])
 async def translate_text(req: TranslateRequest) -> dict:
