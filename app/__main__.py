@@ -26,6 +26,7 @@ class TranslateRequest(BaseModel):
     max_tokens: int | None = None
     temperature: float | None = None
 
+
 logger = setup_logger()
 
 
@@ -64,7 +65,7 @@ else:
 
 
 tokenizer = MarianTokenizer.from_pretrained(settings.MODEL_PATH, local_files_only=True)
-model = MarianMTModel.from_pretrained(settings.MODEL_PATH, trust_remote_code=True)
+model = MarianMTModel.from_pretrained(settings.MODEL_PATH, local_files_only=True)
 
 logger.info(
     "Модель загружена: %s | max_position_embeddings=%d | tokenizer.model_max_length=%d",
@@ -158,9 +159,31 @@ async def translate_text(req: TranslateRequest) -> dict:
     )
     return response
 
-# TODO: посмотреть как получает ответ плагин memoQ
+
 def _openai_response(content: str) -> dict:
-    """Формирует минимальный OpenAI-совместимый ответ."""
+    # Полная структура ChatCompletionResponse (Entity.cs плагина memoQ - MultiSupplierMTPlugin):  # noqa: E501
+    # {
+    #     "id": "test",
+    #     "object": "chat.completion",
+    #     "created": int(time.time()),
+    #     "model": settings.MODEL_PATH,
+    #     "system_fingerprint": None,
+    #     "choices": [{
+    #         "index": 0,
+    #         "message": {
+    #             "role": "assistant",
+    #             "content": content,
+    #             "refusal": None,
+    #             "tool_calls": None,
+    #         },
+    #         "finish_reason": "stop",
+    #     }],
+    #     "usage": {
+    #         "prompt_tokens": 0,
+    #         "completion_tokens": 0,
+    #         "total_tokens": 0,
+    #     },
+    # }
     return {
         "id": "test",
         "object": "chat.completion",
