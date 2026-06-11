@@ -29,5 +29,7 @@ class Settings(BaseSettings):
 
     API_KEY: str
 
+    LOG_LEVEL: str = "DEBUG"
+
 
 settings = Settings()  # type: ignore

@@ -4,13 +4,28 @@ from typing import Annotated
 
 import torch
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from transformers import MarianMTModel, MarianTokenizer
 
 from app.core.config import Environment, settings
+from app.tag_handler import replace_tags, restore_tags
 from app.utils.logging import setup_logger
+
+
+class Message(BaseModel):
+    role: str
+    content: str
+
+
+class TranslateRequest(BaseModel):
+    messages: list[Message] | None = None
+    source: str | None = None
+    model: str | None = None
+    max_tokens: int | None = None
+    temperature: float | None = None
+
 
 logger = setup_logger()
 
@@ -50,60 +65,136 @@ else:
 
 
 tokenizer = MarianTokenizer.from_pretrained(settings.MODEL_PATH, local_files_only=True)
-model = MarianMTModel.from_pretrained(settings.MODEL_PATH, trust_remote_code=True)
+model = MarianMTModel.from_pretrained(settings.MODEL_PATH, local_files_only=True)
 
-
-class TranslationRequest(BaseModel):
-    source: str
-    source_language: str
-    target_language: str
+logger.info(
+    "Модель загружена: %s | max_position_embeddings=%d | tokenizer.model_max_length=%d",
+    settings.MODEL_PATH,
+    model.config.max_position_embeddings,
+    tokenizer.model_max_length,
+)
 
 
 @app.post("/translate", dependencies=[Depends(verify_bearer_token)])
-async def translate_text(req: Request) -> dict:
-    data = await req.json()
+async def translate_text(req: TranslateRequest) -> dict:
+    """
+    С поддержкой XLIFF-тегов.
+    """
     logger.info(
-        "🔵 Пришёл запрос от плагина:\n%s",
-        json.dumps(data, ensure_ascii=False, indent=2),
+        "Пришёл запрос от плагина:\n%s",
+        req.model_dump_json(indent=2),
     )
 
-    # Определяем текст
-    if "messages" in data:
-        user_messages = [
-            m["content"] for m in data.get("messages", []) if m["role"] == "user"
-        ]
+    # ── 1. Определяем текст ──────────────────────────────────────────────
+    if req.messages is not None:
+        user_messages = [m.content for m in req.messages if m.role == "user"]
         text = user_messages[-1] if user_messages else ""
-    elif "source" in data:
-        text = data["source"]
+    elif req.source is not None:
+        text = req.source
     else:
-        return {"translation": ""}
+        return _openai_response("")
 
-    # Перевод
-    inputs = tokenizer([text], return_tensors="pt", padding=True)
+    if not text.strip():
+        return _openai_response("")
+
+    # ── 2. Замена тегов на плейсхолдеры ──────────────────────────────────
+    tag_result = replace_tags(text)
+
+    if tag_result.has_tags:
+        logger.info(
+            "Найдено %d тегов, заменены на плейсхолдеры",
+            len(tag_result.mappings),
+        )
+        logger.debug(
+            "Маппинг тегов:\n%s",
+            "\n".join(
+                f"  {m.placeholder} ← {m.original_tag}" for m in tag_result.mappings
+            ),
+        )
+
+    text_for_model = tag_result.cleaned_text
+
+    # ── 3. Перевод моделью ───────────────────────────────────────────────
+    # truncation=True + max_length=512: MarianMT обучена на окне в 512 токенов,
+    # без обрезки длинный ввод вызывает RuntimeError: bad allocation в beam search
+    inputs = tokenizer(
+        [text_for_model],
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=512,
+    )
     with torch.no_grad():
-        output = model.generate(**inputs)
+        # max_length=512: ограничивает сторону декодера — без этого beam search
+        # пытается выделить память под очень длинные последовательности
+        output = model.generate(**inputs, max_length=512)
     translation = tokenizer.decode(output[0], skip_special_tokens=True)
 
-    logger.info("✅ Перевод: %s → %s", text, translation)
+    logger.info("Сырой перевод: %s → %s", text_for_model, translation)
 
-    # Минимальный OpenAI-совместимый ответ
-    response = {
+    # ── 4. Восстановление тегов ──────────────────────────────────────────
+    if tag_result.has_tags:
+        restore_result = restore_tags(translation, tag_result.mappings, text)
+        translation = restore_result.restored_text
+
+        if not restore_result.success:
+            logger.warning(
+                "Восстановление тегов с ошибками: %s | fallback=%s",
+                "; ".join(restore_result.warnings),
+                restore_result.used_fallback,
+            )
+        else:
+            if restore_result.warnings:
+                logger.warning(
+                    "Восстановление тегов с предупреждениями: %s",
+                    "; ".join(restore_result.warnings),
+                )
+            logger.info("Теги восстановлены: %s", translation)
+
+    # ── 5. Ответ в OpenAI-совместимом формате ────────────────────────────
+    response = _openai_response(translation)
+    logger.info(
+        "Ответ:\n%s",
+        json.dumps(response, ensure_ascii=False, indent=2),
+    )
+    return response
+
+
+def _openai_response(content: str) -> dict:
+    # Полная структура ChatCompletionResponse (Entity.cs плагина memoQ - MultiSupplierMTPlugin):  # noqa: E501
+    # {
+    #     "id": "test",
+    #     "object": "chat.completion",
+    #     "created": int(time.time()),
+    #     "model": settings.MODEL_PATH,
+    #     "system_fingerprint": None,
+    #     "choices": [{
+    #         "index": 0,
+    #         "message": {
+    #             "role": "assistant",
+    #             "content": content,
+    #             "refusal": None,
+    #             "tool_calls": None,
+    #         },
+    #         "finish_reason": "stop",
+    #     }],
+    #     "usage": {
+    #         "prompt_tokens": 0,
+    #         "completion_tokens": 0,
+    #         "total_tokens": 0,
+    #     },
+    # }
+    return {
         "id": "test",
         "object": "chat.completion",
         "choices": [
             {
                 "index": 0,
-                "message": {"role": "assistant", "content": translation},
+                "message": {"role": "assistant", "content": content},
                 "finish_reason": "stop",
             }
         ],
     }
-
-    logger.info(
-        "🟢 Ответ (OpenAI минимальный):\n%s",
-        json.dumps(response, ensure_ascii=False, indent=2),
-    )
-    return response
 
 
 # @app.get("/test")
